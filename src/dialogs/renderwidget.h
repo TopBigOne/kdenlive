@@ -15,6 +15,7 @@ class Menu;
 
 #include "bin/model/markerlistmodel.hpp"
 #include "definitions.h"
+#include "powermanagementinterface.h"
 #include "render/renderrequest.h"
 #include "renderpresets/renderpresetmodel.hpp"
 #include "renderpresets/tree/renderpresettreemodel.hpp"
@@ -106,6 +107,7 @@ class RenderWidget : public QDialog
 
 public:
     enum RenderError { CompositeError = 0, PresetError = 1, ProxyWarning = 2, PlaybackError = 3, OptionsError = 4 };
+    enum RenderStatus { NotRendering = 0, Rendering = 1 };
 
     explicit RenderWidget(bool enableProxy, QWidget *parent = nullptr);
     ~RenderWidget() override;
@@ -200,6 +202,7 @@ private Q_SLOTS:
     /** @brief Prepare the render request. */
     void slotPrepareExport2(bool scriptExport = false);
     void slotCheckFreeMemory();
+    void updatePowerManagement();
 
 private:
     enum Tabs { RenderTab = 0, JobsTab, ScriptsTab };
@@ -221,6 +224,9 @@ private:
     int m_lowMemThreshold{1000};
     int m_veryLowMemThreshold{500};
     MemCheckStatus m_lowMemStatus{NoWarning};
+    /** @brief Power management to inhibit sleep while rendering */
+    PowerManagementInterface mPowerInterface;
+    RenderStatus m_renderStatus{NotRendering};
     QTimer m_memCheckTimer;
 
     Purpose::Menu *m_shareMenu;
@@ -239,5 +245,6 @@ Q_SIGNALS:
     /** Send the info about rendering that will be saved in the document:
     (profile destination, profile name and url of rendered file) */
     void selectedRenderProfile(const QMap<QString, QString> &renderProps);
+    void renderStatusChanged();
     void shutdown();
 };

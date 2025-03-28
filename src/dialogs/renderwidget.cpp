@@ -398,6 +398,7 @@ RenderWidget::RenderWidget(bool enableProxy, QWidget *parent)
     focusItem();
     adjustSize();
     m_view.embed_subtitles->setToolTip(i18n("Only works for the matroska (mkv) format"));
+    connect(this, &RenderWidget::renderStatusChanged, this, &RenderWidget::updatePowerManagement);
 }
 
 void RenderWidget::slotShareActionFinished(const QJsonObject &output, int error, const QString &message)
@@ -877,8 +878,14 @@ void RenderWidget::checkRenderStatus()
         }
         item = static_cast<RenderJobItem *>(m_view.running_jobs->itemBelow(item));
     }
-    if (!waitingJob && m_view.shutdown->isChecked()) {
-        Q_EMIT shutdown();
+    if (!waitingJob) {
+        if (m_renderStatus == Rendering) {
+            m_renderStatus = NotRendering;
+            Q_EMIT renderStatusChanged();
+        }
+        if (m_view.shutdown->isChecked()) {
+            Q_EMIT shutdown();
+        }
     }
 }
 
@@ -1284,6 +1291,10 @@ void RenderWidget::setRenderProgress(const QString &dest, int progress, int fram
             item->setData(1, LastTimeRole, 0);
             item->setData(1, LastFrameRole, frame);
             return;
+        }
+        if (m_renderStatus == NotRendering) {
+            m_renderStatus = Rendering;
+            Q_EMIT renderStatusChanged();
         }
         qint64 elapsedTime = startTime.secsTo(QDateTime::currentDateTime());
         qint64 lastTimeRole = item->data(1, LastTimeRole).toInt();
@@ -2036,4 +2047,16 @@ void RenderWidget::updateMissingClipsCount(int total, int used)
     m_missingClips = total;
     m_missingUsedClips = used;
     updateRenderInfoMessage();
+}
+
+void RenderWidget::updatePowerManagement()
+{
+    switch (m_renderStatus) {
+    case Rendering:
+        mPowerInterface.setPreventSleep(true);
+        break;
+    default:
+        mPowerInterface.setPreventSleep(false);
+        break;
+    }
 }
